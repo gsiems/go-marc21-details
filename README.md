@@ -1,5 +1,8 @@
 # go-marc21-details
 
+[![GoDoc](https://godoc.org/github.com/gsiems/go-marc21/pkg/marc21-details?status.svg)](https://godoc.org/github.com/gsiems/go-marc21-details/pkg/details)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gsiems/go-marc21-details)](https://goreportcard.com/report/github.com/gsiems/go-marc21-details)
+
 Extract detailed information from MARC21 records.
 
 The intent is to parse a MARC record and translate the values of the
