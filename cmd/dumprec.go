@@ -167,7 +167,7 @@ func dumpCV(v details.CodeValue, k string, i int) {
 
 func showHelp() {
 	fmt.Println(os.Args[0])
-	fmt.Println("   Extract the specifed record from a MARC file and print the detailed results.")
+	fmt.Println("   Extract the specified record from a MARC file and print the detailed results.")
 	fmt.Printf("    Usage: %s <MARC file to sesrch> <control number for the record to parse>\n", os.Args[0])
 	fmt.Println()
 	os.Exit(0)
