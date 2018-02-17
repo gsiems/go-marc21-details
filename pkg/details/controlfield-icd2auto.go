@@ -1,3 +1,7 @@
+// Copyright 2017-2018 Gregory Siems. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE file.
+
 package details
 
 import "github.com/gsiems/go-marc21/pkg/marc21"
@@ -121,17 +125,6 @@ func Parse008(rec marc21.Record) (d Cf008Desc) {
 		fcn, ok := m[c]
 		if ok {
 			fcn(&d, s[18:])
-		}
-
-		cf := rec.GetControlfields("006")
-		for _, cf6 := range cf {
-			// IIF the form of material matches?
-			if pluckByte(cf6.Text, 0) == c || pluckByte(cf6.Text, 0) == "s" {
-				fcn, ok := m[c]
-				if ok {
-					fcn(&d, cf6.Text[1:])
-				}
-			}
 		}
 
 	case marc21.Holdings:
