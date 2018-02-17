@@ -1,3 +1,7 @@
+// Copyright 2017-2018 Gregory Siems. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE file.
+
 package details
 
 import "github.com/gsiems/go-marc21/pkg/marc21"

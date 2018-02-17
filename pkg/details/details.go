@@ -1,3 +1,10 @@
+// Copyright 2017-2018 Gregory Siems. All rights reserved.
+// Use of this source code is governed by the MIT license
+// that can be found in the LICENSE file.
+
+// Package marc21-details extracts detailed information from MARC21
+// records.
+
 package details
 
 // CodeValue contains a code and it's corresponding descriptive label
