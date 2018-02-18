@@ -1,5 +1,7 @@
 package details
 
+// Auto-generated code. Do not edit.
+
 ////////////////////////////////////////////////////////////////////////
 // Authority
 ////////////////////////////////////////////////////////////////////////
@@ -4670,6 +4672,7 @@ func parseHoldings008(d *Cf008Desc, s string) {
 
 	c, l = codeLookup(holdings008GeneralRetentionPolicy, s, 12, 1)
 	d.append("(12/01) General retention policy", CodeValue{Code: c, Label: l, Offset: 12, Width: 1})
+	// (13/03) Specific retention policy
 	c, l = codeLookup(holdings008PolicyType, s, 13, 1)
 	d.append("(13/01) Policy Type", CodeValue{Code: c, Label: l, Offset: 13, Width: 1})
 	d.append("(14/01) Number of units", CodeValue{Code: pluckBytes(s, 14, 1), Label: "", Offset: 14, Width: 1})

@@ -61,6 +61,7 @@ func main() {
 
 	fmt.Println("package details")
 	fmt.Println()
+	fmt.Println("// Auto-generated code. Do not edit.")
 
 	// Ensure that the order does not change from run to run
 	fl := []string{
@@ -394,7 +395,10 @@ func make008Funcs(format, cftag string, cfsubtag *codegen.CfSubtag) {
 	ve := validElements(cfsubtag.Elements)
 	for _, e := range ve {
 		varname := strings.ToLower(format) + cftag + stcode + e.CamelName
+		fieldName := fmt.Sprintf("(%02d/%02d) %s", e.Offset, e.Width, e.Name)
+
 		if varname == "holdings008SpecificRetentionPolicy" {
+			fmt.Printf("\t// %s\n", fieldName)
 			continue
 		}
 
@@ -404,8 +408,6 @@ func make008Funcs(format, cftag string, cfsubtag *codegen.CfSubtag) {
 		if format == "Bibliography" && cfsubtag.Label != "ALL MATERIALS" {
 			offsetAdj = 18
 		}
-
-		fieldName := fmt.Sprintf("(%02d/%02d) %s", e.Offset, e.Width, e.Name)
 
 		fcn, ok := m[e.FnType]
 		if ok {
