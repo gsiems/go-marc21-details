@@ -110,6 +110,8 @@ MARC 21 Community Information
 
 */
 
+// LdrDesc is the structure for holding the description from the
+// parsing of the MARC record leader
 type LdrDesc map[string]CodeValue
 
 var characterCodingScheme = map[string]string{
@@ -468,6 +470,8 @@ func parseHoldingsLdr(s string) (ldr LdrDesc) {
 	return ldr
 }
 
+// ParseLeader parses the leader for a record and returns a,
+// hopefully, human readable translation of the contents.
 func ParseLeader(rec marc21.Record) (ldr LdrDesc) {
 
 	rf := rec.RecordFormat()
