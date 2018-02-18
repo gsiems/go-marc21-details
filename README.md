@@ -11,3 +11,7 @@ to be a MARC21 expert to determine what information is recorded in a
 MARC record.
 
 Currently parses the leader and control fields for a MARC record.
+
+## TODO:
+
+    * Add parsing/translating of data field contents.
