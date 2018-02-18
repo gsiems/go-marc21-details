@@ -117,11 +117,9 @@ func main() {
 				}
 
 				if cftag.Tag == "008" {
-					//makeValidLookupFunc(format, cftag.Tag, cfsubtag)
-					make008LookupFunc(format, cftag.Tag, cfsubtag)
+					make008Funcs(format, cftag.Tag, cfsubtag)
 				} else if cftag.Tag == "007" {
-					//makeValidLookupFunc(format, cftag.Tag, cfsubtag)
-					make007LookupFunc(format, cftag.Tag, cfsubtag)
+					make007Funcs(format, cftag.Tag, cfsubtag)
 				}
 			}
 		}
@@ -246,11 +244,21 @@ func makeLookupList(cfe *codegen.CfElement, varname string) {
 	fmt.Println("}")
 }
 
-func make007LookupFunc(format, cftag string, cfsubtag *codegen.CfSubtag) {
+func make007Funcs(format, cftag string, cfsubtag *codegen.CfSubtag) {
 
 	stcode := subtagCodes[fmt.Sprintf("%s\t%s", cftag, cfsubtag.Label)]
 
 	funcName := strings.Join([]string{"parse", format, cftag, stcode}, "")
+
+	type fn func(e *codegen.CfElement, fieldName, varname string)
+
+	m := map[string]fn{
+		"lookup": make007LookupFunc,
+		"read":   make007ReadFunc,
+		"range":  make007ReadFunc,
+		"multi":  make007MultiFunc,
+		"hybrid": make007HybridFunc,
+	}
 
 	fmt.Println()
 	if cfsubtag.Label == "DEFAULT" {
@@ -276,67 +284,97 @@ func make007LookupFunc(format, cftag string, cfsubtag *codegen.CfSubtag) {
 		}
 
 		fieldName := fmt.Sprintf("(%02d/%02d) %s", e.Offset, e.Width, e.Name)
-		if len(e.LookupValues) > 0 && e.FnType == "lookup" {
-			fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset, e.Width)
-			fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
-				fieldName, e.Offset, e.Width)
-		} else if e.FnType == "read" || e.FnType == "range" {
-			fmt.Printf("\tpd[%q] = CodeValue{Code: pluckBytes(s, %d, %d), Label: \"\", Offset: %d, Width: %d}\n",
-				fieldName, e.Offset, e.Width, e.Offset, e.Width)
-		} else if len(e.LookupValues) > 0 && e.FnType == "multi" {
-			end := e.Offset + e.Width
 
-			fmt.Println()
-			if e.CodeWidth == 1 {
-				j := 1
-				for i := e.Offset; i < end; i++ {
-					fn := fmt.Sprintf("%s - %d", fieldName, j)
-					j++
-					fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, i, e.CodeWidth)
-					fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
-						fn, e.Offset, e.Width)
-				}
-			} else {
-				j := 1
-				for i := e.Offset; i < end; i = i + e.CodeWidth {
-					fn := fmt.Sprintf("%s - %d", fieldName, i)
-					j++
-					fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, i, e.CodeWidth)
-					fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
-						fn, e.Offset, e.Width)
-				}
+		fcn, ok := m[e.FnType]
+		if ok {
+			fcn(e, fieldName, varname)
+		}
+	}
+	fmt.Println()
+	fmt.Println("\treturn pd")
+	fmt.Println("}")
+	fmt.Println()
+}
+
+func make007LookupFunc(e *codegen.CfElement, fieldName, varname string) {
+	if len(e.LookupValues) > 0 {
+		fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset, e.Width)
+		fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
+			fieldName, e.Offset, e.Width)
+	}
+}
+
+func make007ReadFunc(e *codegen.CfElement, fieldName, varname string) {
+	fmt.Printf("\tpd[%q] = CodeValue{Code: pluckBytes(s, %d, %d), Label: \"\", Offset: %d, Width: %d}\n",
+		fieldName, e.Offset, e.Width, e.Offset, e.Width)
+}
+
+func make007MultiFunc(e *codegen.CfElement, fieldName, varname string) {
+	if len(e.LookupValues) > 0 {
+		end := e.Offset + e.Width
+
+		fmt.Println()
+		if e.CodeWidth == 1 {
+			j := 1
+			for i := e.Offset; i < end; i++ {
+				fn := fmt.Sprintf("%s - %d", fieldName, j)
+				j++
+				fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, i, e.CodeWidth)
+				fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
+					fn, e.Offset, e.Width)
 			}
-			fmt.Println()
-		} else if len(e.LookupValues) > 0 && e.FnType == "hybrid" {
+		} else {
+			j := 1
+			for i := e.Offset; i < end; i = i + e.CodeWidth {
+				fn := fmt.Sprintf("%s - %d", fieldName, i)
+				j++
+				fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, i, e.CodeWidth)
+				fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
+					fn, e.Offset, e.Width)
+			}
+		}
+		fmt.Println()
+	}
+}
 
-			// Find the element that has the range. Code should have a
-			// hyphen. We want the label
-			for _, lv := range e.LookupValues {
-				if strings.Contains(lv.Code, "-") {
+func make007HybridFunc(e *codegen.CfElement, fieldName, varname string) {
+	if len(e.LookupValues) > 0 {
+		// Find the element that has the range. Code should have a
+		// hyphen. We want the label
+		for _, lv := range e.LookupValues {
+			if strings.Contains(lv.Code, "-") {
 
-					fmt.Println()
-					fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset, e.CodeWidth)
-					fmt.Println("\tif c != \"\" && l == \"\" {")
-					fmt.Printf("\t\tl = %q\n", lv.Label)
-					fmt.Println("\t}")
-					fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
-						fieldName, e.Offset, e.Width)
-					fmt.Println()
+				fmt.Println()
+				fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset, e.CodeWidth)
+				fmt.Println("\tif c != \"\" && l == \"\" {")
+				fmt.Printf("\t\tl = %q\n", lv.Label)
+				fmt.Println("\t}")
+				fmt.Printf("\tpd[%q] = CodeValue{Code: c, Label: l, Offset: %d, Width: %d}\n",
+					fieldName, e.Offset, e.Width)
+				fmt.Println()
 
-					break
-				}
+				return
 			}
 		}
 	}
-	fmt.Println("\n\treturn pd")
-	fmt.Println("}\n")
 }
 
-func make008LookupFunc(format, cftag string, cfsubtag *codegen.CfSubtag) {
+func make008Funcs(format, cftag string, cfsubtag *codegen.CfSubtag) {
 
 	stcode := subtagCodes[fmt.Sprintf("%s\t%s", cftag, cfsubtag.Label)]
 
 	funcName := strings.Join([]string{"parse", format, cftag, stcode}, "")
+
+	type fn func(e *codegen.CfElement, fieldName, varname string, offsetAdj int)
+
+	m := map[string]fn{
+		"lookup":      make008LookupFunc,
+		"read":        make008ReadFunc,
+		"range":       make008ReadFunc,
+		"multi":       make008MultiFunc,
+		"hybrid":      make008HybridFunc,
+		"hybrid-date": make008HybridDateFunc,
+	}
 
 	fmt.Println()
 	if cfsubtag.Label == "DEFAULT" {
@@ -367,61 +405,82 @@ func make008LookupFunc(format, cftag string, cfsubtag *codegen.CfSubtag) {
 		}
 
 		fieldName := fmt.Sprintf("(%02d/%02d) %s", e.Offset, e.Width, e.Name)
-		if len(e.LookupValues) > 0 && e.FnType == "lookup" {
-			fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset-offsetAdj, e.Width)
-			fmt.Printf("\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
-				fieldName, e.Offset, e.Width)
-		} else if e.FnType == "read" || e.FnType == "range" {
-			fmt.Printf("\td.append(%q, CodeValue{Code: pluckBytes(s, %d, %d), Label: \"\", Offset: %d, Width: %d})\n",
-				fieldName, e.Offset-offsetAdj, e.Width, e.Offset, e.Width)
-		} else if len(e.LookupValues) > 0 && e.FnType == "multi" {
-			end := e.Offset - offsetAdj + e.Width
 
-			fmt.Println()
-			if e.CodeWidth == 1 {
-				fmt.Printf("\tfor i := %d; i < %d; i++ {\n", e.Offset-offsetAdj, end)
-			} else {
-				fmt.Printf("\tfor i := %d; i < %d; i = i + %d {\n", e.Offset-offsetAdj, end, e.CodeWidth)
-			}
-			fmt.Printf("\tc, l = codeLookup(%s, s, i, %d)\n", varname, e.CodeWidth)
-
-			fmt.Printf("\t\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
-				fieldName, e.Offset, e.Width)
-			fmt.Println("\t}")
-			fmt.Println()
-		} else if len(e.LookupValues) > 0 && e.FnType == "hybrid" {
-
-			// Find the element that has the range. Code should have a
-			// hyphen (or be enclosed in square braces). We want the label
-			for _, lv := range e.LookupValues {
-				if strings.Contains(lv.Code, "-") || strings.Contains(lv.Code, "[") {
-
-					fmt.Println()
-					fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset-offsetAdj, e.CodeWidth)
-					fmt.Println("\tif c != \"\" && l == \"\" {")
-					fmt.Printf("\t\tl = %q\n", lv.Label)
-					fmt.Println("\t}")
-					fmt.Printf("\t\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
-						fieldName, e.Offset, e.Width)
-					fmt.Println()
-
-					break
-				}
-			}
-		} else if len(e.LookupValues) > 0 && e.FnType == "hybrid-date" {
-
-			fmt.Println()
-			fmt.Printf("\tc, l = codeLookup(%s, s, %d, 1)\n", varname, e.Offset-offsetAdj)
-			fmt.Println("\tif l == \"\" {")
-			fmt.Printf("\t\tc = pluckBytes(s, %d, %d)\n", e.Offset-offsetAdj, e.Width)
-			fmt.Println("\t\tl = \"Date\"")
-			fmt.Println("\t}")
-			fmt.Printf("\t\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
-				fieldName, e.Offset, e.Width)
-			fmt.Println()
-
+		fcn, ok := m[e.FnType]
+		if ok {
+			fcn(e, fieldName, varname, offsetAdj)
 		}
 	}
 
-	fmt.Println("}\n")
+	fmt.Println("}")
+	fmt.Println()
+}
+
+func make008LookupFunc(e *codegen.CfElement, fieldName, varname string, offsetAdj int) {
+	if len(e.LookupValues) > 0 {
+		fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset-offsetAdj, e.Width)
+		fmt.Printf("\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
+			fieldName, e.Offset, e.Width)
+	}
+}
+
+func make008ReadFunc(e *codegen.CfElement, fieldName, varname string, offsetAdj int) {
+	fmt.Printf("\td.append(%q, CodeValue{Code: pluckBytes(s, %d, %d), Label: \"\", Offset: %d, Width: %d})\n",
+		fieldName, e.Offset-offsetAdj, e.Width, e.Offset, e.Width)
+}
+
+func make008MultiFunc(e *codegen.CfElement, fieldName, varname string, offsetAdj int) {
+	if len(e.LookupValues) > 0 {
+		end := e.Offset - offsetAdj + e.Width
+
+		fmt.Println()
+		if e.CodeWidth == 1 {
+			fmt.Printf("\tfor i := %d; i < %d; i++ {\n", e.Offset-offsetAdj, end)
+		} else {
+			fmt.Printf("\tfor i := %d; i < %d; i = i + %d {\n", e.Offset-offsetAdj, end, e.CodeWidth)
+		}
+		fmt.Printf("\tc, l = codeLookup(%s, s, i, %d)\n", varname, e.CodeWidth)
+
+		fmt.Printf("\t\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
+			fieldName, e.Offset, e.Width)
+		fmt.Println("\t}")
+		fmt.Println()
+	}
+}
+
+func make008HybridFunc(e *codegen.CfElement, fieldName, varname string, offsetAdj int) {
+	if len(e.LookupValues) > 0 {
+		// Find the element that has the range. Code should have a
+		// hyphen (or be enclosed in square braces). We want the label
+		for _, lv := range e.LookupValues {
+			if strings.Contains(lv.Code, "-") || strings.Contains(lv.Code, "[") {
+
+				fmt.Println()
+				fmt.Printf("\tc, l = codeLookup(%s, s, %d, %d)\n", varname, e.Offset-offsetAdj, e.CodeWidth)
+				fmt.Println("\tif c != \"\" && l == \"\" {")
+				fmt.Printf("\t\tl = %q\n", lv.Label)
+				fmt.Println("\t}")
+				fmt.Printf("\t\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
+					fieldName, e.Offset, e.Width)
+				fmt.Println()
+
+				return
+			}
+		}
+	}
+}
+
+func make008HybridDateFunc(e *codegen.CfElement, fieldName, varname string, offsetAdj int) {
+	if len(e.LookupValues) > 0 {
+
+		fmt.Println()
+		fmt.Printf("\tc, l = codeLookup(%s, s, %d, 1)\n", varname, e.Offset-offsetAdj)
+		fmt.Println("\tif l == \"\" {")
+		fmt.Printf("\t\tc = pluckBytes(s, %d, %d)\n", e.Offset-offsetAdj, e.Width)
+		fmt.Println("\t\tl = \"Date\"")
+		fmt.Println("\t}")
+		fmt.Printf("\t\td.append(%q, CodeValue{Code: c, Label: l, Offset: %d, Width: %d})\n",
+			fieldName, e.Offset, e.Width)
+		fmt.Println()
+	}
 }
