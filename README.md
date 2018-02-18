@@ -14,4 +14,4 @@ Currently parses the leader and control fields for a MARC record.
 
 ## TODO:
 
-    * Add parsing/translating of data field contents.
+ * Add parsing/translating of data field contents.
