@@ -271,7 +271,8 @@ func make007Funcs(format, cftag string, cfsubtag *codegen.CfSubtag) {
 
 	fmt.Println()
 	fmt.Printf("func %s(s string) (pd Cf007Desc) {\n\n", funcName)
-	fmt.Println("\tpd = make(Cf007Desc)\n")
+	fmt.Println("\tpd = make(Cf007Desc)")
+	fmt.Println()
 	fmt.Println("\tvar c string")
 	fmt.Println("\tvar l string")
 	ve := validElements(cfsubtag.Elements)
