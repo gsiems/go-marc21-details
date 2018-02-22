@@ -8,7 +8,7 @@
 package details
 
 // CodeValue contains a code and it's corresponding descriptive label
-// for a controlfield entry.
+// for a leader or controlfield entry.
 type CodeValue struct {
 	Code   string
 	Label  string
